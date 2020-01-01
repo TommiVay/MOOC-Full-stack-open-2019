@@ -5,6 +5,8 @@ const Book = require('./models/book')
 const User = require('./models/user')
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
+const { PubSub } = require('apollo-server')
+const pubsub = new PubSub()
 
 const JWT_SECRET = process.env.SECRET
 mongoose.set('useFindAndModify', false)
@@ -79,6 +81,9 @@ type Token {
     me: User
   }
 
+  type Subscription {
+    bookAdded: Book!
+}
 
 `
 
@@ -90,6 +95,9 @@ const resolvers = {
       let books = await Book.find({}).populate('author', { name: 1 })
       if (args.genre) {
         books = books.filter(b => b.genres.includes(args.genre))
+      }
+      if (args.author) {
+        books = books.filter(b => b.author.name === args.author)
       }
       return books
     },
@@ -150,17 +158,19 @@ const resolvers = {
             invalidArgs: args,
           })
         }
-        const book = new Book({ ...args, author: author })
-        try {
-          await book.save()
-        } catch (error) {
-          throw new UserInputError(error.message, {
-            invalidArgs: args,
-          })
-        }
-        return book
       }
+      const book = new Book({ ...args, author: author })
+      try {
+        await book.save()
+      } catch (error) {
+        throw new UserInputError(error.message, {
+          invalidArgs: args,
+        })
+      }
+      pubsub.publish('BOOK_ADDED', { bookAdded: book })
+      return book
     },
+
     editAuthor: async (root, args, context) => {
       const currentUser = context.currentUser
       if (!currentUser) {
@@ -184,7 +194,12 @@ const resolvers = {
         })
       }
     }
-  }
+  },
+  Subscription: {
+    bookAdded: {
+      subscribe: () => pubsub.asyncIterator(['BOOK_ADDED'])
+    },
+  },
 }
 
 const server = new ApolloServer({
@@ -202,6 +217,7 @@ const server = new ApolloServer({
   }
 })
 
-server.listen().then(({ url }) => {
+server.listen().then(({ url, subscriptionsUrl }) => {
   console.log(`Server ready at ${url}`)
+  console.log(`Subscriptions ready at ${subscriptionsUrl}`)
 })

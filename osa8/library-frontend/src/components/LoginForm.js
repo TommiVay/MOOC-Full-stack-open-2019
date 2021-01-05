@@ -10,7 +10,10 @@ const LoginForm = (props) => {
     event.preventDefault()
 
     const result = await props.login({
-      variables: { username, password }
+      variables: {
+        username,
+        password
+      }
     })
 
     if (result) {
@@ -22,26 +25,20 @@ const LoginForm = (props) => {
     setPassword('')
     props.setPage('authors')
   }
-  
+
 
   return (
     <div>
       <form onSubmit={submit}>
         <div>
-          username <input
-            value={username}
-            onChange={({ target }) => setUsername(target.value)}
-          />
+          username
+    <input value={username} onChange={({ target }) => setUsername(target.value)} />
         </div>
         <div>
-          password <input
-            type='password'
-            value={password}
-            onChange={({ target }) => setPassword(target.value)}
-          />
+          password <input type='password' value={password} onChange={({ target }) => setPassword(target.value)} />
         </div>
         <button type='submit'>login</button>
-      </form>
+      </form >
     </div>
   )
 }
